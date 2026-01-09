@@ -158,7 +158,7 @@ services:
       dockerfile: Dockerfile
     container_name: LDConnect
     env_file:
-      - ./LD_Connect_Event/.env         
+      - ./.env         
     networks:
       - qrapids 
     environment:
