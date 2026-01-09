@@ -1,6 +1,7 @@
-# TFG Learning Dashboard - Ecosistema Completo
+# Learning Dashboard - Data Infrastructure Integration
+## Integració d'una Nova Infraestructura de Dades al Learning Dashboard
 
-Este repositorio contiene la infraestructura completa del ecosistema Learning Dashboard, incluyendo todos los servicios dockerizados y su configuración.
+Este repositorio contiene la infraestructura completa del ecosistema Learning Dashboard, incluyendo todos los servicios dockerizados, bases de datos, webhooks y herramientas de administración.
 
 ## 📋 Índice
 
@@ -15,35 +16,87 @@ Este repositorio contiene la infraestructura completa del ecosistema Learning Da
 
 ## 🏗️ Arquitectura del Sistema
 
-El ecosistema consta de los siguientes servicios interconectados:
+El ecosistema consta de **7 servicios interconectados** que trabajan juntos para proporcionar un sistema completo de análisis y gestión del Learning Dashboard:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Learning Dashboard                        │
-│                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   Admin Tool │  │  LD Connect  │  │   LD Eval    │     │
-│  │   Frontend   │  │   (Webhooks) │  │ (Evaluation) │     │
-│  │  (React)     │  │  (Flask)     │  │  (Flask)     │     │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
-│         │                 │                  │              │
-│         │                 │                  │              │
-│  ┌──────▼───────┐  ┌──────▼──────────────────▼───────┐    │
-│  │   Admin Tool │  │         Tomcat                   │    │
-│  │   Backend    │  │    (LD Dashboard Core)           │    │
-│  │ (Spring Boot)│  │                                  │    │
-│  └──────┬───────┘  └──────┬───────────────────────────┘   │
-│         │                 │                                │
-│  ┌──────▼─────────────────▼──────┐  ┌─────────────┐      │
-│  │       PostgreSQL               │  │   MongoDB   │      │
-│  │  (Proyectos, Estudiantes)      │  │  (Eventos)  │      │
-│  └────────────────────────────────┘  └─────────────┘      │
-│                                                             │
-│  Integraciones Externas:                                   │
-│  • GitHub (via webhooks)                                   │
-│  • Taiga (via webhooks + ngrok)                           │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                     LEARNING DASHBOARD ECOSYSTEM                    │
+│                                                                     │
+│  ┌─────────────────┐                        ┌─────────────────┐   │
+│  │  Admin Tool     │──────────┐             │  LD Frontend    │   │
+│  │  Frontend       │          │             │  (Tomcat UI)    │   │
+│  │  (React+Vite)   │          │             └────────┬────────┘   │
+│  └────────┬────────┘          │                      │             │
+│           │                   │                      │             │
+│           ├──────────────┐    │                      │             │
+│           │              │    │                      │             │
+│           ▼              ▼    ▼                      ▼             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐   │
+│  │  Admin Tool     │  │   LD Eval       │  │   Tomcat        │   │
+│  │  Backend        │  │   (Metrics &    │  │   (LD Core)     │   │
+│  │  (Spring Boot)  │  │   Evaluation)   │  └────────┬────────┘   │
+│  └────────┬────────┘  └────────┬────────┘           │             │
+│           │                    │                    │             │
+│           │                    │                    │             │
+│           │                    │                    │             │
+│           ▼                    │                    ▼             │
+│  ┌─────────────────┐           │           ┌─────────────────┐   │
+│  │   Tomcat        │           │           │  PostgreSQL     │   │
+│  │   (LD Backend)  │◄──────────┘           │  (SQL Data)     │   │
+│  └────────┬────────┘                       └─────────────────┘   │
+│           │                                                       │
+│           ▼                                ┌─────────────────┐   │
+│  ┌─────────────────┐                       │   MongoDB       │   │
+│  │  PostgreSQL     │             ┌────────►│  (Metrics &     │   │
+│  │  (Projects,     │             │         │   Events)       │   │
+│  │   Students)     │             │         └─────────▲───────┘   │
+│  └─────────────────┘             │                   │           │
+│                                  │                   │           │
+│                         ┌────────┴────────┐          │           │
+│                         │   LD Eval       │──────────┘           │
+│                         │   (Process &    │                      │
+│                         │    Store)       │                      │
+│                         └────────▲────────┘                      │
+│                                  │                               │
+│                         ┌────────┴────────┐                      │
+│                         │   LD Connect    │                      │
+│                         │   (Webhooks)    │                      │
+│                         └────────▲────────┘                      │
+│                                  │                               │
+│  ┌───────────────────────────────┴──────────────────────────┐   │
+│  │                    EXTERNAL SOURCES                       │   │
+│  │                                                            │   │
+│  │  ┌──────────────┐              ┌──────────────┐          │   │
+│  │  │   GitHub     │              │    Taiga     │          │   │
+│  │  │  (Webhooks)  │              │  (Webhooks)  │          │   │
+│  │  └──────────────┘              └──────────────┘          │   │
+│  └────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────┘
 ```
+
+### Flujo de Datos
+
+**1. Captura de Eventos (LD Connect):**
+   - Recibe webhooks de **GitHub** (push, pull requests)
+   - Recibe webhooks de **Taiga** (tasks, milestones)
+   - Notifica a **LD Eval** para procesamiento
+
+**2. Procesamiento de Métricas (LD Eval):**
+   - Evalúa los cambios recibidos
+   - Calcula métricas y factores de calidad
+   - Almacena resultados en **MongoDB**
+
+**3. Visualización Principal (Frontend LD):**
+   - Muestra métricas y factores desde **MongoDB**
+   - Muestra datos de proyectos desde **PostgreSQL**
+   - Interfaz accesible vía **Tomcat**
+
+**4. Administración (Admin Tool):**
+   - **Frontend**: Interfaz React para gestionar equipos
+   - **Backend**: API Spring Boot para operaciones administrativas
+   - Conecta con **Tomcat (LD Backend)** para acceder a datos
+   - Conecta directamente con **LD Eval** para ciertas consultas
+   - Todo respaldado por **PostgreSQL**
 
 ## 📦 Requisitos Previos
 
@@ -58,7 +111,7 @@ El ecosistema consta de los siguientes servicios interconectados:
 
 ```bash
 git clone <URL_DE_TU_REPO>
-cd TFG-dev
+cd learning-dashboard-infrastructure
 ```
 
 ### 2. Clonar los submódulos (repositorios internos)
@@ -110,7 +163,7 @@ NGROK_LD_URL=https://xxxx.ngrok-free.app
 NGROK_LDCONNECT_URL=https://yyyy.ngrok-free.app
 
 # Taiga Configuration
-TAIGA_API_URL=https://uncreosoted-dermatic-johnny.ngrok-free.dev/api/v1
+TAIGA_API_URL=https://zzzz.ngrok-free.dev/api/v1
 TAIGA_AUTH_URL=https://api.taiga.io/api/v1
 TAIGA_USERNAME=tu_usuario
 TAIGA_PASSWORD=tu_password
@@ -128,11 +181,9 @@ DB_PASSWORD=example
 ```
 
 **Importante**: 
-- `TAIGA_API_URL` apunta al ngrok del compañero (para consultas)
+- `TAIGA_API_URL` apunta al ngrok del Taiga FIB (para consultas)
 - `TAIGA_AUTH_URL` apunta siempre a Taiga público (para autenticación)
 - **Nunca** subas el archivo `.env` a Git (está en `.gitignore`)
-
-Ver [CONFIG.md](CONFIG.md) para documentación detallada de todas las variables.
 
 ## 🔧 Servicios Incluidos
 
@@ -197,14 +248,6 @@ docker logs -f admintool_frontend
 
 ### Reiniciar todo el sistema
 
-Usa el script PowerShell incluido:
-
-```powershell
-.\restart-ld.ps1
-```
-
-O manualmente:
-
 ```bash
 docker-compose down
 docker-compose up -d
@@ -246,7 +289,7 @@ Si ves errores `Unauthorized` en los logs:
 
 Si ves `401 Unauthorized` al consultar milestones:
 
-- **Causa**: El ngrok del compañero requiere autenticación
+- **Causa**: El ngrok del Taiga FIB requiere autenticación
 - **Solución**: Verifica que `TAIGA_API_URL` apunta al ngrok correcto y que el servidor ngrok tiene autenticación desactivada
 
 ### Webhooks no funcionan
@@ -271,9 +314,6 @@ Si ves `401 Unauthorized` al consultar milestones:
    ```
 
 ## 📚 Documentación Adicional
-
-- [CONFIG.md](CONFIG.md) - Documentación completa de configuración
-- [TESTING_DOCUMENTATION.md](TESTING_DOCUMENTATION.md) - Documentación de testing
 - [LD_Connect_Event/README.md](LD_Connect_Event/README.md) - Documentación de LD Connect
 - [LD_Eval_Event/README.md](LD_Eval_Event/README.md) - Documentación de LD Eval
 
@@ -288,17 +328,20 @@ Si ves `401 Unauthorized` al consultar milestones:
 
 1. **Ngrok URLs**: Los túneles ngrok cambian cada vez que se reinicia ngrok. Actualiza `NGROK_LD_URL` y `NGROK_LDCONNECT_URL` en el `.env` cuando sea necesario.
 
-2. **Taiga del compañero**: Si el compañero cambia su ngrok, actualiza `TAIGA_API_URL` en el `.env`.
+2. **Taiga FIB**: Si se cambia su ngrok, actualiza `TAIGA_API_URL` en el `.env`.
 
-3. **Submódulos Git**: Los repositorios dentro de TFG dev (LD-learning-dashboard, ld_admintool, etc.) son repositorios independientes. Puedes hacer commits y push en cada uno por separado.
+3. **Submódulos Git**: Los repositorios dentro de learning-dashboard-infrastructure (LD-learning-dashboard, ld_admintool, etc.) son repositorios independientes. Puedes hacer commits y push en cada uno por separado.
 
 4. **Reconstruir contenedores**: Si cambias código Python o Java, necesitas reconstruir el contenedor correspondiente con `docker-compose build <servicio>`.
 
 5. **Base de datos**: Los datos de PostgreSQL y MongoDB se guardan en volúmenes Docker. Persisten aunque reinicies los contenedores.
 
-## 👥 Autores
+## 👥 Autor
 
-- Gerard Ferrer - Desarrollo e integración del ecosistema Learning Dashboard
+- **Gerard Ferrer** - Treball Final de Grau (TFG)
+- **Títol**: Integració d'una Nova Infraestructura de Dades al Learning Dashboard
+- **Universidad**: Universitat Politècnica de Catalunya - Facultat d'Informàtica de Barcelona
+- **Año**: 2025-2026
 
 ## 📄 Licencia
 
