@@ -4,6 +4,7 @@
 
 # Archivo de configuración con datos sensibles
 .env
+application.properties
 
 # Archivos de ngrok
 ngrok.yml

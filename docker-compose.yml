@@ -71,6 +71,12 @@ services:
     build:
       context: ./node-tomcat
     container_name: qrapids_tomcat
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || wget --spider -q http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
     environment:
     - QRAPIDS_CONFIG_DIR
     - QRAPIDS_DATA_DIR
@@ -193,6 +199,8 @@ services:
     depends_on:
       mongodb:                   
         condition: service_started
+      tomcat:
+        condition: service_healthy
     ports:
       - "127.0.0.1:5001:5001"
     extra_hosts:
@@ -220,9 +228,12 @@ services:
     networks:
       - qrapids
     depends_on:
-      - db
-      - ld_eval
-      - tomcat
+      db:
+        condition: service_started
+      ld_eval:
+        condition: service_started
+      tomcat:
+        condition: service_healthy    
     ports:
       - "127.0.0.1:${ADMINTOOL_PORT:-8080}:8080"
     restart: unless-stopped
